@@ -1,0 +1,99 @@
+# ==========================================
+# STEP 1: Install dependencies
+# ==========================================
+!pip install pandas requests tqdm
+
+# ==========================================
+# STEP 2: Import libraries
+# ==========================================
+import pandas as pd
+import requests
+from tqdm import tqdm
+from google.colab import files
+
+# ==========================================
+# STEP 3: Upload input CSV
+# ==========================================
+print("Upload your CSV with 'Company Name' & 'Company Profile' columns:")
+uploaded = files.upload()
+input_file = list(uploaded.keys())[0]
+
+df = pd.read_csv(input_file)
+print(f"Loaded {len(df)} companies:")
+df.head()
+
+# ==========================================
+# STEP 4: Configure DeepSeek API
+# ==========================================
+DEEPSEEK_API_KEY = "YOUR_DEEPSEEK_API_KEY"  # <-- Replace with your key
+DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
+
+HEADERS = {
+    "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+    "Content-Type": "application/json"
+}
+
+# ==========================================
+# STEP 5: Classification function
+# ==========================================
+def classify_company(company_name, company_profile):
+    prompt = f"""
+You are a B2B industry classification expert.
+
+Company Name: {company_name}
+Company Profile: {company_profile}
+
+Question:
+Is this company primarily involved in infrastructure or construction activities
+that typically require STEEL as a raw material?
+
+Answer ONLY in one word:
+YES / NO / UNCLEAR
+"""
+
+    payload = {
+        "model": "deepseek-chat",
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0
+    }
+
+    try:
+        response = requests.post(
+            DEEPSEEK_API_URL,
+            headers=HEADERS,
+            json=payload,
+            timeout=30
+        )
+        response.raise_for_status()
+        result = response.json()
+        answer = result["choices"][0]["message"]["content"].strip().upper()
+        if answer not in ["YES", "NO", "UNCLEAR"]:
+            return "UNCLEAR"
+        return answer
+    except Exception as e:
+        return "ERROR"
+
+# ==========================================
+# STEP 6: Run classification on all rows
+# ==========================================
+results = []
+
+print("Classifying companies...")
+for _, row in tqdm(df.iterrows(), total=len(df)):
+    classification = classify_company(
+        row["Company Name"],
+        row["Company Profile"]
+    )
+    results.append(classification)
+
+df["Infra_Construction_Requiring_Steel"] = results
+
+# ==========================================
+# STEP 7: Save and download output CSV
+# ==========================================
+output_file = "classified_companies.csv"
+df.to_csv(output_file, index=False)
+print(f"Classification complete! Downloading {output_file}...")
+files.download(output_file)
