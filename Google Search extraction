@@ -10,46 +10,34 @@ from serpapi import GoogleSearch
 import pandas as pd
 import time
 from tqdm import tqdm
+import getpass
 
 # ==========================================
-# STEP 3: SerpAPI key
+# STEP 3: Ask for SerpAPI key securely
 # ==========================================
-SERP_API_KEY = "YOUR_SERPAPI_KEY"  # 🔒 Replace with your key
+SERP_API_KEY = getpass.getpass("🔑 Enter your SerpAPI Key: ")
+
+if not SERP_API_KEY.strip():
+    raise ValueError("❌ SerpAPI key cannot be empty")
 
 # ==========================================
 # STEP 4: Search queries
 # ==========================================
 queries = [
-    "Cable tray manufacturer in Maharashtra",
-    "Cable tray manufacturer in Mumbai",
-    "Cable tray manufacturer in Pune",
-    "Cable tray manufacturer in Nagpur",
-    "Cable tray manufacturer in Nashik",
-    "Cable tray manufacturer in Delhi",
-    "Cable tray manufacturer in Rajasthan",
-    "Cable tray manufacturer in Jaipur",
-    "Cable tray manufacturer in Gurgaon",
-    "Cable tray manufacturer in Gujarat",
-    "Cable tray manufacturer in Ahmedabad",
-    "Cable tray manufacturer in Chennai",
-    "Cable tray manufacturer in Bangalore",
-    "Cable tray manufacturer in Karnataka",
-    "Cable tray manufacturer in Hyderabad",
-    "Cable tray manufacturer in Coimbatore",
-    "Cable tray manufacturer in Telangana",
-    "Cable tray manufacturer in Kolkata",
-    "Cable tray manufacturer in UP",
-    "Cable tray manufacturer in Uttar Pradesh",
-    "Cable tray manufacturer in Punjab",
-    "Cable tray manufacturer in Rajkot"
+    "Infrastructure companies in Lucknow",
+    "Infrastructure companies in Kanpur",
+    "Infrastructure companies in Agra",
+    "Infrastructure companies in Prayagraj",
+    "Infrastructure companies in Allahabad",
+    "Infrastructure companies in Jhansi"
 ]
 
 # ==========================================
-# STEP 5: Google search function (30 results)
+# STEP 5: Google search function (MAX 30 results)
 # ==========================================
 def get_google_search_results(query, num_results=30):
     all_results = []
-    results_per_page = 10  # SerpAPI limit
+    results_per_page = 10
 
     for start in range(0, num_results, results_per_page):
         params = {
@@ -58,22 +46,26 @@ def get_google_search_results(query, num_results=30):
             "api_key": SERP_API_KEY,
             "num": results_per_page,
             "start": start,
-            "gl": "in",   # India
-            "hl": "en"    # English
+            "gl": "in",
+            "hl": "en"
         }
 
-        search = GoogleSearch(params)
-        data = search.get_dict()
+        try:
+            search = GoogleSearch(params)
+            data = search.get_dict()
 
-        if "organic_results" in data:
-            all_results.extend(data["organic_results"])
+            if "organic_results" in data:
+                all_results.extend(data["organic_results"])
 
-        time.sleep(1.5)  # polite delay
+        except Exception as e:
+            print(f"❌ Error for query '{query}': {e}")
+
+        time.sleep(1.5)
 
     return all_results
 
 # ==========================================
-# STEP 6: Collect results (deduplicated)
+# STEP 6: Collect & deduplicate results
 # ==========================================
 all_data = []
 seen_links = set()
@@ -82,7 +74,7 @@ for query in tqdm(queries, desc="Searching"):
     results = get_google_search_results(query, num_results=30)
 
     for res in results:
-        link = res.get("link", "")
+        link = res.get("link", "").strip()
         if not link or link in seen_links:
             continue
 
@@ -101,7 +93,8 @@ for query in tqdm(queries, desc="Searching"):
 # STEP 7: Save CSV
 # ==========================================
 df = pd.DataFrame(all_data)
-df.to_csv("cable_tray_manufacturers_india.csv", index=False)
+output_file = "infrastructure_companies_uttar_pradesh.csv"
+df.to_csv(output_file, index=False)
 
-print(f"✅ CSV saved with {len(df)} unique companies")
+print(f"✅ CSV saved as '{output_file}' with {len(df)} unique websites")
 df.head()
