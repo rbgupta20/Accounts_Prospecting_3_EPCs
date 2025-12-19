@@ -1,0 +1,107 @@
+# ==========================================
+# STEP 1: Install dependencies
+# ==========================================
+!pip install google-search-results pandas tqdm
+
+# ==========================================
+# STEP 2: Import libraries
+# ==========================================
+from serpapi import GoogleSearch
+import pandas as pd
+import time
+from tqdm import tqdm
+
+# ==========================================
+# STEP 3: SerpAPI key
+# ==========================================
+SERP_API_KEY = "YOUR_SERPAPI_KEY"  # 🔒 Replace with your key
+
+# ==========================================
+# STEP 4: Search queries
+# ==========================================
+queries = [
+    "Cable tray manufacturer in Maharashtra",
+    "Cable tray manufacturer in Mumbai",
+    "Cable tray manufacturer in Pune",
+    "Cable tray manufacturer in Nagpur",
+    "Cable tray manufacturer in Nashik",
+    "Cable tray manufacturer in Delhi",
+    "Cable tray manufacturer in Rajasthan",
+    "Cable tray manufacturer in Jaipur",
+    "Cable tray manufacturer in Gurgaon",
+    "Cable tray manufacturer in Gujarat",
+    "Cable tray manufacturer in Ahmedabad",
+    "Cable tray manufacturer in Chennai",
+    "Cable tray manufacturer in Bangalore",
+    "Cable tray manufacturer in Karnataka",
+    "Cable tray manufacturer in Hyderabad",
+    "Cable tray manufacturer in Coimbatore",
+    "Cable tray manufacturer in Telangana",
+    "Cable tray manufacturer in Kolkata",
+    "Cable tray manufacturer in UP",
+    "Cable tray manufacturer in Uttar Pradesh",
+    "Cable tray manufacturer in Punjab",
+    "Cable tray manufacturer in Rajkot"
+]
+
+# ==========================================
+# STEP 5: Google search function (30 results)
+# ==========================================
+def get_google_search_results(query, num_results=30):
+    all_results = []
+    results_per_page = 10  # SerpAPI limit
+
+    for start in range(0, num_results, results_per_page):
+        params = {
+            "engine": "google",
+            "q": f"{query} -indiamart -justdial",
+            "api_key": SERP_API_KEY,
+            "num": results_per_page,
+            "start": start,
+            "gl": "in",   # India
+            "hl": "en"    # English
+        }
+
+        search = GoogleSearch(params)
+        data = search.get_dict()
+
+        if "organic_results" in data:
+            all_results.extend(data["organic_results"])
+
+        time.sleep(1.5)  # polite delay
+
+    return all_results
+
+# ==========================================
+# STEP 6: Collect results (deduplicated)
+# ==========================================
+all_data = []
+seen_links = set()
+
+for query in tqdm(queries, desc="Searching"):
+    results = get_google_search_results(query, num_results=30)
+
+    for res in results:
+        link = res.get("link", "")
+        if not link or link in seen_links:
+            continue
+
+        seen_links.add(link)
+
+        all_data.append({
+            "search_query": query,
+            "google_position": res.get("position", ""),
+            "title": res.get("title", ""),
+            "website": link,
+            "snippet": res.get("snippet", ""),
+            "displayed_link": res.get("displayed_link", "")
+        })
+
+# ==========================================
+# STEP 7: Save CSV
+# ==========================================
+df = pd.DataFrame(all_data)
+df.to_csv("cable_tray_manufacturers_india.csv", index=False)
+
+print(f"✅ CSV saved with {len(df)} unique companies")
+df.head()
