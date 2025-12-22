@@ -1,0 +1,113 @@
+# ======================================
+# STEP 1: Install & Import
+# ======================================
+import pandas as pd
+import json
+import re
+
+# ======================================
+# STEP 2: GSTIN Regex
+# ======================================
+GSTIN_REGEX = re.compile(r"\b\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]\b")
+
+# ======================================
+# STEP 3: GSTIN Extraction Logic (Updated)
+# ======================================
+def extract_gstins_best(company_name, raw_json):
+    if pd.isna(raw_json):
+        return []
+
+    try:
+        data = json.loads(raw_json)
+    except json.JSONDecodeError:
+        return []
+
+    gstin_scores = []
+
+    organic_results = data.get("organic", [])
+
+    for res in organic_results:
+        text = " ".join([
+            str(res.get("title", "")),
+            str(res.get("snippet", "")),
+            str(res.get("link", ""))
+        ])
+
+        found = GSTIN_REGEX.findall(text)
+
+        for gstin in found:
+            score = 0
+            if company_name.lower() in text.lower():
+                score += 3
+            position = res.get("position", 10)
+            score += max(0, 5 - position)
+            gstin_scores.append((gstin, score))
+
+    if not gstin_scores:
+        return []
+
+    # Aggregate scores
+    score_map = {}
+    for gstin, score in gstin_scores:
+        score_map[gstin] = score_map.get(gstin, 0) + score
+
+    # Find max score
+    max_score = max(score_map.values())
+
+    # Keep only GSTIN(s) with max score
+    best_gstins = [gstin for gstin, score in score_map.items() if score == max_score]
+
+    return best_gstins
+
+# ======================================
+# STEP 4: Ask for CSV input
+# ======================================
+import os
+
+# For Google Colab
+try:
+    from google.colab import files
+    print("Upload your CSV file:")
+    uploaded = files.upload()
+    input_file = list(uploaded.keys())[0]
+except ImportError:
+    # For local execution
+    input_file = input("Enter path to CSV file: ")
+
+print(f"✅ Loaded CSV: {input_file}")
+
+# Load CSV
+df = pd.read_csv(input_file)
+# ======================================
+# STEP 5: Apply Extraction and Explode Rows
+# ======================================
+df["Best GSTINs"] = df.apply(
+    lambda row: extract_gstins_best(row["Company Name"], row["Serper Raw Response"]),
+    axis=1
+)
+
+# Explode the list so each GSTIN gets its own row
+df_exploded = df.explode("Best GSTINs").reset_index(drop=True)
+df_exploded.rename(columns={"Best GSTINs": "GSTIN"}, inplace=True)
+
+# ======================================
+# STEP 5b: Deduplicate based on PAN
+# ======================================
+def get_pan_from_gstin(gstin):
+    # GSTIN format: 2-digit state + 10-char PAN + 1 char + 1 Z + 1 check digit
+    return gstin[2:12] if gstin else None
+
+df_exploded["PAN"] = df_exploded["GSTIN"].apply(get_pan_from_gstin)
+
+# Keep only first GSTIN per company per PAN
+df_exploded = df_exploded.drop_duplicates(subset=["Company Name", "PAN"]).reset_index(drop=True)
+
+# Drop the PAN column if not needed
+df_exploded.drop(columns=["PAN"], inplace=True)
+
+# ======================================
+# STEP 6: Save Output
+# ======================================
+output_file = "output_with_best_gstin.csv"
+df_exploded.to_csv(output_file, index=False)
+print(f"✅ GSTIN extraction completed with PAN-based deduplication. Output saved to {output_file}")
