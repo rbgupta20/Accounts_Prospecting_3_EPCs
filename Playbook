@@ -1,5 +1,6 @@
 1. Serper API for companies list extraction
 2. Clean child link to get parent link
+3. Remove duplicates from Parent links
 3. Extract HTML text from the Parent Link
 4. Extract Company name from HTML Text
 5. Check for Relevancy
