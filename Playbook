@@ -1,4 +1,20 @@
-1. Serper API for companies list extraction
+Need to consollidate Different Python codes made for running on Google Collab into single code.
+Below is the brief about each of those codes. 
+
+These sequence of codes are designed for B2B Growth Leads which can use to it to get Leads for a given industry & region.
+
+Inputs to be taken from user:-
+- Industry from which the Leads required
+- Region from which the leads are required
+- DeepSeek API key
+- Serper API Key
+
+
+Code-1
+- Serper API for companies list extraction
+- For a given industry & cities
+
+
 2. Clean child link to get parent link
 3. Remove duplicates from Parent links
 3. Extract HTML text from the Parent Link
